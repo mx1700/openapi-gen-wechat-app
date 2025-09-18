@@ -1,6 +1,6 @@
 {
   "name": "@mx1700/openapi-gen-wechat-app",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "",
   "main": "dist/index.js",
   "repository": {
@@ -24,5 +24,10 @@
     "commander": "^12.1.0",
     "openapi-types": "^12.1.3",
     "@apidevtools/swagger-parser": "^10.1.0"
-  }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ]
 }
