@@ -17,7 +17,7 @@ export interface RequestInterface {
 }
 
 // 默认实现（使用 fetch）
-const defaultRequestImpl: RequestInterface = {
+export const FetchRequestImpl: RequestInterface = {
   request: async <T>(url: string, method: RequestMethod, data?: any, headers?: Record<string, string>, options?: RequestOptions): Promise<T> => {
     return fetch(url, {
       method,
@@ -38,7 +38,7 @@ class AbortError extends Error {
   }
 }
 
-class WechatRequestImpl implements RequestInterface {
+export class WechatRequestImpl implements RequestInterface {
   private defaultHeaders: Record<string, string>;
   private timeout?: number;
 
@@ -81,12 +81,4 @@ class WechatRequestImpl implements RequestInterface {
       }
     })
   }
-}
-
-// 可替换的实现变量
-export let requestImpl: RequestInterface = defaultRequestImpl;
-
-// 导出的 request 函数，使用当前实现
-export async function request<T>(url: string, method: RequestMethod, data?: any, headers?: Record<string, string>, options?: RequestOptions): Promise<T> {
-  return requestImpl.request(url, method, data, headers, options);
 }
