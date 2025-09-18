@@ -12,9 +12,6 @@
   },
   "author": "",
   "license": "ISC",
-  "publishConfig": {
-    "registry": "https://npm.pkg.github.com/"
-  },
   "devDependencies": {
     "@types/node": "^24.5.2",
     "typescript": "^5.9.2"
