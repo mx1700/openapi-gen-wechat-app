@@ -38,6 +38,11 @@ async function loadOpenAPIDefinition(input: string): Promise<OpenAPIV3.Document>
 }
 
 async function generateClientCode(api: OpenAPIV3.Document, outputDir: string): Promise<void> {
+  // 复制 request.ts 到输出目录
+  const requestSrcPath = path.join(__dirname, '../src/request.ts');
+  const requestDestPath = path.join(outputDir, 'request.ts');
+  fs.copyFileSync(requestSrcPath, requestDestPath);
+
   // 生成全局类型文件
   const typesFilePath = path.join(outputDir, 'types.ts');
   const typesContent = generateGlobalTypes(api);
@@ -74,17 +79,23 @@ async function generateClientCode(api: OpenAPIV3.Document, outputDir: string): P
 }
 
 function generateTagFile(tag: string, operations: { operation: OpenAPIV3.OperationObject; path: string; method: string }[], api: OpenAPIV3.Document): string {
-  let content = `import { request } from './request';\nimport * as ApiType from './types';\n\n`;
+  let content = `import { RequestInterface } from './request';\nimport * as ApiType from './types';\n\n`;
 
   // 生成内联类型定义
   const inlineTypes = generateInlineTypes(operations, api);
   content += inlineTypes + '\n';
+
+  // 生成类
+  content += `export class ${toPascalCase(tag)}Client {\n`;
+  content += `  constructor(private request: RequestInterface) {}\n\n`;
 
   // 生成方法
   for (const item of operations) {
     const methodCode = generateMethod(item, api);
     content += methodCode + '\n';
   }
+
+  content += `}\n`;
 
   return content;
 }
@@ -231,9 +242,9 @@ function generateMethod(item: { operation: OpenAPIV3.OperationObject; path: stri
   const httpMethodUpper = httpMethod.toUpperCase();
   const dataParam = httpMethodUpper === 'GET' || httpMethodUpper === 'DELETE' ? '' : 'data';
 
-  return `export async function ${methodName}(${dataParam ? `data: ${requestType}` : ''}): Promise<${responseType}> {
-  return request('${url}', '${httpMethodUpper}', ${dataParam || 'undefined'});
-}`;
+  return `  async ${methodName}(${dataParam ? `data: ${requestType}` : ''}): Promise<${responseType}> {
+    return this.request.request('${url}', '${httpMethodUpper}', ${dataParam || 'undefined'});
+  }`;
 }
 
 function toCamelCase(str: string): string {
