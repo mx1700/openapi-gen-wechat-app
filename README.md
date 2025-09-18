@@ -10,6 +10,7 @@
 - 🔒 类型安全，支持完整的 TypeScript 类型定义
 - 📦 零配置，开箱即用
 - 🎯 自动生成 ApiClient 包装类，统一管理所有 API 客户端
+- 🛑 支持请求取消，通过 AbortController 控制接口请求
 
 ## 安装
 
@@ -129,7 +130,7 @@ output/
 
 ```typescript
 // auth.ts
-import { RequestInterface } from './request';
+import { RequestInterface, RequestOptions } from './request';
 
 export interface LoginRequest {
   username: string;
@@ -144,8 +145,8 @@ export interface LoginResponse {
 export class AuthClient {
   constructor(private request: RequestInterface) {}
 
-  async login(data: LoginRequest): Promise<LoginResponse> {
-    return this.request.request('/login', 'POST', data);
+  async login(data: LoginRequest, options?: RequestOptions): Promise<LoginResponse> {
+    return this.request.request('/login', 'POST', data, undefined, options);
   }
 }
 ```
@@ -175,6 +176,27 @@ export default ApiClient;
 - **文件分组**: 按 OpenAPI `tags` 字段分组生成文件
 - **统一调用**: 所有方法内部调用 `src/request.ts` 的 `request` 函数
 - **客户端包装**: 自动生成 `ApiClient` 包装类，统一管理所有 API 客户端实例
+- **请求取消**: 支持通过 AbortController 取消正在进行的请求
+
+## 请求取消使用方法
+
+所有生成的 API 方法都支持可选的 `options` 参数，可以通过 `options.signal` 传递 `AbortSignal` 来控制请求取消：
+
+```typescript
+// 创建 AbortController
+const controller = new AbortController();
+
+// 调用 API 方法时传递 signal
+await apiClient.auth.login(loginData, { signal: controller.signal });
+
+// 在需要时取消请求
+controller.abort();
+```
+
+### 使用场景
+- **用户界面交互**: 当用户快速切换页面或重复点击时，可以取消之前的请求
+- **超时控制**: 设置请求超时时间，超过时间自动取消
+- **竞态条件避免**: 确保只处理最新的请求结果
 
 ## 依赖要求
 
@@ -185,21 +207,27 @@ export default ApiClient;
 ```typescript
 type RequestMethod = "GET" | "POST" | "PUT" | "DELETE";
 
+// 定义请求选项接口
+export interface RequestOptions {
+  signal?: AbortSignal;
+}
+
 // 定义接口
 export interface RequestInterface {
-  request<T>(url: string, method: RequestMethod, data?: any, headers?: Record<string, string>): Promise<T>;
+  request<T>(url: string, method: RequestMethod, data?: any, headers?: Record<string, string>, options?: RequestOptions): Promise<T>;
 }
 
 // 默认实现（使用 fetch）
 const defaultRequestImpl: RequestInterface = {
-  request: async <T>(url: string, method: RequestMethod, data?: any, headers?: Record<string, string>): Promise<T> => {
+  request: async <T>(url: string, method: RequestMethod, data?: any, headers?: Record<string, string>, options?: RequestOptions): Promise<T> => {
     return fetch(url, {
       method,
       headers: {
         "Content-Type": "application/json",
         ...headers
       },
-      body: JSON.stringify(data)
+      body: JSON.stringify(data),
+      signal: options?.signal
     }).then(response => response.json());
   }
 };
@@ -208,8 +236,8 @@ const defaultRequestImpl: RequestInterface = {
 export let requestImpl: RequestInterface = defaultRequestImpl;
 
 // 导出的 request 函数，使用当前实现
-export async function request<T>(url: string, method: RequestMethod, data?: any, headers?: Record<string, string>): Promise<T> {
-  return requestImpl.request(url, method, data, headers);
+export async function request<T>(url: string, method: RequestMethod, data?: any, headers?: Record<string, string>, options?: RequestOptions): Promise<T> {
+  return requestImpl.request(url, method, data, headers, options);
 }
 ```
 
