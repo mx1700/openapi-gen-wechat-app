@@ -1,5 +1,5 @@
 {
-  "name": "openapi-gen-wechat-app",
+  "name": "@mx1700/openapi-gen-wechat-app",
   "version": "1.0.0",
   "description": "",
   "main": "dist/index.js",
@@ -12,6 +12,9 @@
   },
   "author": "",
   "license": "ISC",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com/"
+  },
   "devDependencies": {
     "@types/node": "^24.5.2",
     "typescript": "^5.9.2"
