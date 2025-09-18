@@ -1,0 +1,404 @@
+{
+	"openapi": "3.0.0",
+	"components": {
+		"examples": {},
+		"headers": {},
+		"parameters": {},
+		"requestBodies": {},
+		"responses": {},
+		"schemas": {
+			"UserRole": {
+				"type": "string",
+				"enum": [
+					"admin",
+					"user",
+					"guest"
+				]
+			},
+			"JwtUserPayload": {
+				"properties": {
+					"iss": {
+						"type": "string"
+					},
+					"sub": {
+						"type": "string"
+					},
+					"aud": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"items": {
+									"type": "string"
+								},
+								"type": "array"
+							}
+						]
+					},
+					"exp": {
+						"type": "number",
+						"format": "double"
+					},
+					"nbf": {
+						"type": "number",
+						"format": "double"
+					},
+					"iat": {
+						"type": "number",
+						"format": "double"
+					},
+					"jti": {
+						"type": "string"
+					},
+					"userId": {
+						"type": "number",
+						"format": "double"
+					},
+					"role": {
+						"items": {
+							"$ref": "#/components/schemas/UserRole"
+						},
+						"type": "array"
+					}
+				},
+				"required": [
+					"userId",
+					"role"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"HealthResponse": {
+				"properties": {
+					"status": {
+						"type": "string"
+					},
+					"timestamp": {
+						"type": "string"
+					},
+					"uptime": {
+						"type": "number",
+						"format": "double"
+					},
+					"environment": {
+						"type": "string"
+					},
+					"version": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"status",
+					"timestamp",
+					"uptime",
+					"environment",
+					"version"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"User": {
+				"properties": {
+					"id": {
+						"type": "number",
+						"format": "double"
+					},
+					"name": {
+						"type": "string"
+					},
+					"avatarUrl": {
+						"type": "string"
+					},
+					"gender": {
+						"type": "string",
+						"nullable": true
+					}
+				},
+				"required": [
+					"id",
+					"name",
+					"avatarUrl",
+					"gender"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"WechatLoginParams": {
+				"properties": {
+					"code": {
+						"type": "string",
+						"description": "小程序微信登录方法获取的 code"
+					}
+				},
+				"required": [
+					"code"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"WechatRegisterParams": {
+				"properties": {
+					"wechatId": {
+						"type": "number",
+						"format": "double",
+						"description": "未注册用户通过 wechatLogin 接口获取的 wechatId"
+					},
+					"phoneNumberCode": {
+						"type": "string",
+						"description": "小程序调用获取手机号方法，获取 code"
+					}
+				},
+				"required": [
+					"wechatId",
+					"phoneNumberCode"
+				],
+				"type": "object",
+				"additionalProperties": false
+			}
+		},
+		"securitySchemes": {
+			"bearerAuth": {
+				"type": "http",
+				"scheme": "bearer",
+				"bearerFormat": "JWT"
+			}
+		}
+	},
+	"info": {
+		"title": "极驾 API",
+		"version": "1.0.0",
+		"description": "API documentation generated from TypeScript definitions",
+		"license": {
+			"name": "ISC"
+		},
+		"contact": {}
+	},
+	"paths": {
+		"/users/me": {
+			"post": {
+				"operationId": "getMyInfo",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/JwtUserPayload"
+								}
+							}
+						}
+					}
+				},
+				"tags": [
+					"Users"
+				],
+				"security": [
+					{
+						"bearerAuth": [
+							"user"
+						]
+					}
+				],
+				"parameters": []
+			}
+		},
+		"/health": {
+			"get": {
+				"operationId": "GetHealth",
+				"responses": {
+					"200": {
+						"description": "服务器运行正常",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/HealthResponse"
+								},
+								"examples": {
+									"Example 1": {
+										"value": {
+											"status": "ok",
+											"timestamp": "2024-01-01T00:00:00.000Z",
+											"uptime": 3600,
+											"environment": "development",
+											"version": "1.0.0"
+										}
+									}
+								}
+							}
+						}
+					}
+				},
+				"description": "健康检查",
+				"summary": "检查服务器运行状态",
+				"tags": [
+					"Health"
+				],
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": []
+			}
+		},
+		"/auth/testLogin": {
+			"post": {
+				"operationId": "TestLogin",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"properties": {
+										"token": {
+											"type": "string"
+										}
+									},
+									"required": [
+										"token"
+									],
+									"type": "object"
+								}
+							}
+						}
+					}
+				},
+				"tags": [
+					"Auth"
+				],
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": []
+			}
+		},
+		"/auth/wechatLogin": {
+			"post": {
+				"operationId": "wechatLogin",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"properties": {
+										"user": {
+											"$ref": "#/components/schemas/User"
+										},
+										"wechatId": {
+											"type": "number",
+											"format": "double"
+										},
+										"userId": {
+											"type": "number",
+											"format": "double"
+										},
+										"token": {
+											"type": "string"
+										}
+									},
+									"required": [
+										"user",
+										"wechatId",
+										"userId",
+										"token"
+									],
+									"type": "object"
+								}
+							}
+						}
+					}
+				},
+				"description": "微信登录\r\n\r\n当用户已经注册时，返回 token 和登录用户的信息\r\n当用户未注册时，依旧返回 token，但登录用户信息为空，userId 为 0，这时需存储 wechatId 到客户端，注册的时候需要传递",
+				"tags": [
+					"Auth"
+				],
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/WechatLoginParams"
+							}
+						}
+					}
+				}
+			}
+		},
+		"/auth/wechatRegister": {
+			"post": {
+				"operationId": "wechatRegister",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"properties": {
+										"user": {
+											"$ref": "#/components/schemas/User"
+										},
+										"userId": {
+											"type": "number",
+											"format": "double"
+										}
+									},
+									"required": [
+										"user",
+										"userId"
+									],
+									"type": "object"
+								}
+							}
+						}
+					}
+				},
+				"description": "微信注册\r\n\r\n小程序先调用获取手机号方法，获取 code，然后调用此接口，传入 code，后端通过 code 获取用户手机号后注册账号\r\nwechatId 需从 wechatLogin 返回值中获取",
+				"tags": [
+					"Auth"
+				],
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/WechatRegisterParams"
+							}
+						}
+					}
+				}
+			}
+		}
+	},
+	"servers": [
+		{
+			"url": "/api"
+		}
+	],
+	"tags": [
+		{
+			"name": "Users",
+			"description": "用户相关"
+		},
+		{
+			"name": "Health",
+			"description": "健康检查"
+		}
+	]
+}

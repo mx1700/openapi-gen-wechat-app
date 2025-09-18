@@ -1,0 +1,209 @@
+# OpenAPI WeChat Mini Program Client Generator
+
+根据 OpenAPI 定义自动生成微信小程序客户端代码的 CLI 工具。
+
+## 功能特性
+
+- 🚀 自动生成 TypeScript 客户端代码
+- 📱 专为微信小程序优化
+- 🏷️ 按 API tag 自动分组文件
+- 🔒 类型安全，支持完整的 TypeScript 类型定义
+- 📦 零配置，开箱即用
+
+## 安装
+
+### 全局安装
+
+```bash
+npm install -g openapi-gen-wechat-app
+```
+
+### 本地安装
+
+```bash
+npm install openapi-gen-wechat-app --save-dev
+```
+
+### 从源码构建
+
+```bash
+git clone <repository-url>
+cd openapi-gen-wechat-app
+npm install
+npm run build
+```
+
+## 使用方法
+
+### 基本用法
+
+```bash
+# 使用本地 OpenAPI 文件
+openapi-gen-wechat-app ./swagger.json ./output
+
+# 使用远程 OpenAPI URL
+openapi-gen-wechat-app https://api.example.com/swagger.json ./output
+
+# 显示帮助信息
+openapi-gen-wechat-app --help
+```
+
+### 参数说明
+
+- `input`: OpenAPI 定义文件路径（本地文件或 URL）
+- `output`: 生成代码的输出目录
+
+## OpenAPI 定义要求
+
+### 接口约束
+- 遵循 RPC 风格
+- 仅支持 POST 请求方法
+- 参数通过请求 Body 传输 JSON 对象
+- 响应为 JSON 对象格式
+- URL 不包含路径参数和查询参数
+
+### 示例 OpenAPI 定义
+
+```json
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Example API",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/login": {
+      "post": {
+        "tags": ["auth"],
+        "operationId": "login",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "username": { "type": "string" },
+                  "password": { "type": "string" }
+                },
+                "required": ["username", "password"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "token": { "type": "string" },
+                    "userId": { "type": "number" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+## 生成代码说明
+
+### 文件结构
+```
+output/
+├── auth.ts      # 认证相关接口
+├── user.ts      # 用户相关接口
+└── ...
+```
+
+### 生成的代码示例
+
+```typescript
+// auth.ts
+import { request } from './request';
+
+export interface LoginRequest {
+  username: string;
+  password: string;
+}
+
+export interface LoginResponse {
+  token?: string;
+  userId?: number;
+}
+
+export async function login(data: LoginRequest): Promise<LoginResponse> {
+  return request('/login', 'POST', data);
+}
+```
+
+### 代码特性
+- **类型安全**: 自动生成请求和响应 TypeScript 接口
+- **方法命名**: 基于 `operationId` 或 `summary` 生成驼峰命名方法
+- **文件分组**: 按 OpenAPI `tags` 字段分组生成文件
+- **统一调用**: 所有方法内部调用 `src/request.ts` 的 `request` 函数
+
+## 依赖要求
+
+生成的项目需要包含以下文件：
+
+### src/request.ts
+
+```typescript
+type RequestMethod = "GET" | "POST" | "PUT" | "DELETE";
+
+async function request<T>(url: string, method: RequestMethod, data?: any, headers?: Record<string, string>): Promise<T> {
+  return fetch(url, {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+      ...headers
+    },
+    body: JSON.stringify(data)
+  }).then(response => response.json());
+}
+```
+
+## 开发
+
+### 项目结构
+
+```
+├── src/
+│   ├── index.ts      # CLI 入口
+│   ├── generator.ts  # 代码生成器
+│   └── request.ts    # 请求封装
+├── dist/             # 编译输出
+├── package.json
+├── tsconfig.json
+└── README.md
+```
+
+### 构建
+
+```bash
+npm run build
+```
+
+### 测试
+
+```bash
+npm test
+```
+
+## 贡献
+
+欢迎提交 Issue 和 Pull Request！
+
+## 许可证
+
+ISC License
+
+## 作者
+
+[Your Name]
