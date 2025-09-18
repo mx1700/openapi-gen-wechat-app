@@ -263,7 +263,7 @@ function generateMethod(item: { operation: OpenAPIV3.OperationObject; path: stri
   const url = pathName;
 
   const httpMethodUpper = httpMethod.toUpperCase();
-  const dataParam = httpMethodUpper === 'GET' || httpMethodUpper === 'DELETE' ? '' : 'data';
+  const dataParam = operation.requestBody && (httpMethodUpper !== 'GET' && httpMethodUpper !== 'DELETE') ? 'data' : '';
 
   return `  async ${methodName}(${dataParam ? `data: ${requestType}` : ''}): Promise<${responseType}> {
     return this.request.request('${url}', '${httpMethodUpper}', ${dataParam || 'undefined'});
