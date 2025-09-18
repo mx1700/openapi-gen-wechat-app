@@ -3,6 +3,10 @@
   "version": "1.0.2",
   "description": "",
   "main": "dist/index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mx1700/openapi-gen-wechat-app.git"
+  },
   "bin": {
     "openapi-gen-wechat-app": "dist/index.js"
   },
