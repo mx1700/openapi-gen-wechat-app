@@ -9,6 +9,7 @@
 - 🏷️ 按 API tag 自动分组文件
 - 🔒 类型安全，支持完整的 TypeScript 类型定义
 - 📦 零配置，开箱即用
+- 🎯 自动生成 ApiClient 包装类，统一管理所有 API 客户端
 
 ## 安装
 
@@ -116,8 +117,11 @@ openapi-gen-wechat-app --help
 ### 文件结构
 ```
 output/
+├── index.ts     # API 客户端包装类
 ├── auth.ts      # 认证相关接口
 ├── user.ts      # 用户相关接口
+├── request.ts   # 请求封装
+├── types.ts     # 全局类型定义
 └── ...
 ```
 
@@ -125,7 +129,7 @@ output/
 
 ```typescript
 // auth.ts
-import { request } from './request';
+import { RequestInterface } from './request';
 
 export interface LoginRequest {
   username: string;
@@ -137,9 +141,32 @@ export interface LoginResponse {
   userId?: number;
 }
 
-export async function login(data: LoginRequest): Promise<LoginResponse> {
-  return request('/login', 'POST', data);
+export class AuthClient {
+  constructor(private request: RequestInterface) {}
+
+  async login(data: LoginRequest): Promise<LoginResponse> {
+    return this.request.request('/login', 'POST', data);
+  }
 }
+```
+
+```typescript
+// index.ts
+import { AuthClient } from "./auth";
+import { RequestInterface } from "./request";
+import { UsersClient } from "./Users";
+
+class ApiClient {
+    auth: AuthClient;
+    users: UsersClient;
+    constructor(private request: RequestInterface) {
+        this.request = request;
+        this.auth = new AuthClient(this.request);
+        this.users = new UsersClient(this.request);
+    }
+}
+
+export default ApiClient;
 ```
 
 ### 代码特性
@@ -147,6 +174,7 @@ export async function login(data: LoginRequest): Promise<LoginResponse> {
 - **方法命名**: 基于 `operationId` 或 `summary` 生成驼峰命名方法
 - **文件分组**: 按 OpenAPI `tags` 字段分组生成文件
 - **统一调用**: 所有方法内部调用 `src/request.ts` 的 `request` 函数
+- **客户端包装**: 自动生成 `ApiClient` 包装类，统一管理所有 API 客户端实例
 
 ## 依赖要求
 
@@ -157,15 +185,31 @@ export async function login(data: LoginRequest): Promise<LoginResponse> {
 ```typescript
 type RequestMethod = "GET" | "POST" | "PUT" | "DELETE";
 
-async function request<T>(url: string, method: RequestMethod, data?: any, headers?: Record<string, string>): Promise<T> {
-  return fetch(url, {
-    method,
-    headers: {
-      "Content-Type": "application/json",
-      ...headers
-    },
-    body: JSON.stringify(data)
-  }).then(response => response.json());
+// 定义接口
+export interface RequestInterface {
+  request<T>(url: string, method: RequestMethod, data?: any, headers?: Record<string, string>): Promise<T>;
+}
+
+// 默认实现（使用 fetch）
+const defaultRequestImpl: RequestInterface = {
+  request: async <T>(url: string, method: RequestMethod, data?: any, headers?: Record<string, string>): Promise<T> => {
+    return fetch(url, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        ...headers
+      },
+      body: JSON.stringify(data)
+    }).then(response => response.json());
+  }
+};
+
+// 可替换的实现变量
+export let requestImpl: RequestInterface = defaultRequestImpl;
+
+// 导出的 request 函数，使用当前实现
+export async function request<T>(url: string, method: RequestMethod, data?: any, headers?: Record<string, string>): Promise<T> {
+  return requestImpl.request(url, method, data, headers);
 }
 ```
 
