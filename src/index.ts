@@ -8,7 +8,7 @@ const program = new Command();
 program
   .name('openapi-gen-wechat-app')
   .description('Generate WeChat Mini Program client code from OpenAPI definition')
-  .version('1.0.1');
+  .version('1.0.2');
 
 program
   .argument('<input>', 'Path to swagger.json file or URL')
