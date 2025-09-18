@@ -76,6 +76,11 @@ async function generateClientCode(api: OpenAPIV3.Document, outputDir: string): P
     const content = generateTagFile(tag, operations, api);
     fs.writeFileSync(filePath, content, 'utf-8');
   }
+
+  // 生成 index.ts 文件
+  const indexFilePath = path.join(outputDir, 'index.ts');
+  const indexContent = generateIndexFile(Object.keys(tagGroups), outputDir);
+  fs.writeFileSync(indexFilePath, indexContent, 'utf-8');
 }
 
 function generateTagFile(tag: string, operations: { operation: OpenAPIV3.OperationObject; path: string; method: string }[], api: OpenAPIV3.Document): string {
@@ -96,6 +101,24 @@ function generateTagFile(tag: string, operations: { operation: OpenAPIV3.Operati
   }
 
   content += `}\n`;
+
+  return content;
+}
+
+function generateIndexFile(tags: string[], outputDir: string): string {
+  let imports = `import { RequestInterface } from "./request";\n`;
+  let classProps = '';
+  let constructorBody = '';
+
+  for (const tag of tags) {
+    const className = `${toPascalCase(tag)}Client`;
+    const propName = tag.toLowerCase();
+    imports += `import { ${className} } from "./${tag}";\n`;
+    classProps += `    ${propName}: ${className};\n`;
+    constructorBody += `        this.${propName} = new ${className}(this.request);\n`;
+  }
+
+  const content = `${imports}\nclass ApiClient {\n${classProps}    constructor(private request: RequestInterface) {\n${constructorBody}    }\n}\n\nexport default ApiClient;\n`;
 
   return content;
 }
