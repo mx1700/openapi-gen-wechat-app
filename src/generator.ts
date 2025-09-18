@@ -13,6 +13,14 @@ function resolveRef(ref: string, api: OpenAPIV3.Document): OpenAPIV3.SchemaObjec
   return current as OpenAPIV3.SchemaObject;
 }
 
+function getSchemaDescription(schema: OpenAPIV3.SchemaObject | OpenAPIV3.ReferenceObject, api: OpenAPIV3.Document): string | undefined {
+  if ('$ref' in schema) {
+    const resolved = resolveRef(schema.$ref, api);
+    return resolved?.description;
+  }
+  return schema.description;
+}
+
 export async function generateClient(input: string, outputDir: string): Promise<void> {
   // 读取和解析 OpenAPI 定义
   const api = await loadOpenAPIDefinition(input);
@@ -163,22 +171,27 @@ function generateTypeFromSchema(schema: OpenAPIV3.SchemaObject | OpenAPIV3.Refer
   }
 
   if (schema.type === 'object' && schema.properties) {
+    const interfaceComment = schema.description ? `/** ${schema.description} */\n` : '';
     const properties = Object.entries(schema.properties).map(([key, propSchema]) => {
       const propType = getTypeFromSchema(propSchema, api, isGlobalType);
       const optional = !schema.required?.includes(key) ? '?' : '';
-      return `  ${key}${optional}: ${propType};`;
+      const propDesc = getSchemaDescription(propSchema, api);
+      const propComment = propDesc ? `  /** ${propDesc} */\n` : '';
+      return `${propComment}  ${key}${optional}: ${propType};`;
     }).join('\n');
-    return `export interface ${typeName} {\n${properties}\n}`;
+    return `${interfaceComment}export interface ${typeName} {\n${properties}\n}`;
   }
 
   if (schema.type === 'array' && schema.items) {
     const itemType = getTypeFromSchema(schema.items, api, isGlobalType);
-    return `export type ${typeName} = ${itemType}[];`;
+    const arrayComment = schema.description ? `/** ${schema.description} */\n` : '';
+    return `${arrayComment}export type ${typeName} = ${itemType}[];`;
   }
 
   // 其他类型
   const type = getTypeFromSchema(schema, api, isGlobalType);
-  return `export type ${typeName} = ${type};`;
+  const typeComment = schema.description ? `/** ${schema.description} */\n` : '';
+  return `${typeComment}export type ${typeName} = ${type};`;
 }
 
 function getTypeFromSchema(schema: OpenAPIV3.SchemaObject | OpenAPIV3.ReferenceObject, api: OpenAPIV3.Document, isGlobalType: boolean = false): string {
@@ -224,6 +237,9 @@ function generateMethod(item: { operation: OpenAPIV3.OperationObject; path: stri
   const { operation, path: pathName, method: httpMethod } = item;
   const operationId = operation.operationId || operation.summary || 'unknown';
   const methodName = toCamelCase(operationId);
+
+  // 生成方法注释
+  const methodComment = operation.description || operation.summary ? `  /** ${operation.description || operation.summary} */\n` : '';
 
   // 请求类型
   let requestType = 'any';
@@ -271,7 +287,7 @@ function generateMethod(item: { operation: OpenAPIV3.OperationObject; path: stri
   }
   params.push('options?: RequestOptions');
 
-  return `  async ${methodName}(${params.join(', ')}): Promise<${responseType}> {
+  return `${methodComment}  async ${methodName}(${params.join(', ')}): Promise<${responseType}> {
     return this.request.request('${url}', '${httpMethodUpper}', ${dataParam || 'undefined'}, undefined, options);
   }`;
 }
