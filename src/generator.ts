@@ -84,7 +84,7 @@ async function generateClientCode(api: OpenAPIV3.Document, outputDir: string): P
 }
 
 function generateTagFile(tag: string, operations: { operation: OpenAPIV3.OperationObject; path: string; method: string }[], api: OpenAPIV3.Document): string {
-  let content = `import { RequestInterface } from './request';\nimport * as ApiType from './types';\n\n`;
+  let content = `import { RequestInterface, RequestOptions } from './request';\nimport * as ApiType from './types';\n\n`;
 
   // 生成内联类型定义
   const inlineTypes = generateInlineTypes(operations, api);
@@ -265,8 +265,14 @@ function generateMethod(item: { operation: OpenAPIV3.OperationObject; path: stri
   const httpMethodUpper = httpMethod.toUpperCase();
   const dataParam = operation.requestBody && (httpMethodUpper !== 'GET' && httpMethodUpper !== 'DELETE') ? 'data' : '';
 
-  return `  async ${methodName}(${dataParam ? `data: ${requestType}` : ''}): Promise<${responseType}> {
-    return this.request.request('${url}', '${httpMethodUpper}', ${dataParam || 'undefined'});
+  const params = [];
+  if (dataParam) {
+    params.push(`data: ${requestType}`);
+  }
+  params.push('options?: RequestOptions');
+
+  return `  async ${methodName}(${params.join(', ')}): Promise<${responseType}> {
+    return this.request.request('${url}', '${httpMethodUpper}', ${dataParam || 'undefined'}, undefined, options);
   }`;
 }
 
