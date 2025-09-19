@@ -9,6 +9,8 @@ export interface RequestOptions {
 interface WechatRequestOptions {
   defaultHeaders?: Record<string, string>;
   timeout?: number;
+  requestHandler?: (response: any, resolve: (value?: any) => void, reject: (reason?: any) => void) => any;
+  failureHandler?: (error: any, resolve: (value?: any) => void, reject: (reason?: any) => void) => any;
 }
 
 // 定义接口
@@ -38,17 +40,32 @@ class AbortError extends Error {
   }
 }
 
+class ApiError extends Error {
+  constructor(message: string = 'API request failed.', public code: number = -1) {
+    super(message)
+    this.name = 'ApiError'
+  }
+}
+
 export class WechatRequestImpl implements RequestInterface {
   private defaultHeaders: Record<string, string>;
   private timeout?: number;
+  private requestHandler?: (response: any, resolve: (value?: any) => void, reject: (reason?: any) => void) => any;
+  private failureHandler?: (error: any, resolve: (value?: any) => void, reject: (reason?: any) => void) => any;
 
   constructor(private baseUrl: string, options: WechatRequestOptions = {}) {
     this.defaultHeaders = options.defaultHeaders || {};
     this.timeout = options.timeout;
+    this.requestHandler = options.requestHandler;
+    this.failureHandler = options.failureHandler;
   }
 
   setToken(token: string) {
     this.defaultHeaders['Authorization'] = `Bearer ${token}`
+  }
+
+  getToken() {
+    return this.defaultHeaders['Authorization']?.replace('Bearer ', '') || null;
   }
 
   async request<T>(url: string, method: RequestMethod, data?: any, headers?: Record<string, string>, options?: RequestOptions): Promise<T> {
@@ -62,15 +79,23 @@ export class WechatRequestImpl implements RequestInterface {
         data,
         header: headersWithDefaults,
         timeout: this.timeout ?? 10000,
-        success(res: { statusCode: number; data: T }) {
-          if (res.statusCode >= 200 && res.statusCode < 300) {
-            resolve(res.data)
+        success(res: { statusCode: number; data: T & { message?: string, code?: number } }) {
+          if (this.requestHandler) {
+            this.requestHandler(res, resolve, reject)
           } else {
-            reject(new Error(`Request failed with status code ${res.statusCode}`))
+            if (res.statusCode >= 200 && res.statusCode < 300) {
+              resolve(res.data)
+            } else {
+              reject(new ApiError(res.data?.message ?? 'Request failed', res.data?.code ?? res.statusCode))
+            }
           }
         },
         fail(err: any) {
-          reject(err)
+          if (this.failureHandler) {
+            this.failureHandler(err, resolve, reject)
+          } else {
+            reject(err)
+          }
         }
       })
       if (options?.signal) {
