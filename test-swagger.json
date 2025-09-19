@@ -7,64 +7,28 @@
 		"requestBodies": {},
 		"responses": {},
 		"schemas": {
-			"UserRole": {
-				"type": "string",
-				"enum": [
-					"admin",
-					"user",
-					"guest"
-				]
-			},
-			"JwtUserPayload": {
+			"User": {
 				"properties": {
-					"iss": {
+					"id": {
+						"type": "number",
+						"format": "double"
+					},
+					"name": {
 						"type": "string"
 					},
-					"sub": {
+					"avatarUrl": {
 						"type": "string"
 					},
-					"aud": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"items": {
-									"type": "string"
-								},
-								"type": "array"
-							}
-						]
-					},
-					"exp": {
-						"type": "number",
-						"format": "double"
-					},
-					"nbf": {
-						"type": "number",
-						"format": "double"
-					},
-					"iat": {
-						"type": "number",
-						"format": "double"
-					},
-					"jti": {
-						"type": "string"
-					},
-					"userId": {
-						"type": "number",
-						"format": "double"
-					},
-					"role": {
-						"items": {
-							"$ref": "#/components/schemas/UserRole"
-						},
-						"type": "array"
+					"gender": {
+						"type": "string",
+						"nullable": true
 					}
 				},
 				"required": [
-					"userId",
-					"role"
+					"id",
+					"name",
+					"avatarUrl",
+					"gender"
 				],
 				"type": "object",
 				"additionalProperties": false
@@ -94,32 +58,6 @@
 					"uptime",
 					"environment",
 					"version"
-				],
-				"type": "object",
-				"additionalProperties": false
-			},
-			"User": {
-				"properties": {
-					"id": {
-						"type": "number",
-						"format": "double"
-					},
-					"name": {
-						"type": "string"
-					},
-					"avatarUrl": {
-						"type": "string"
-					},
-					"gender": {
-						"type": "string",
-						"nullable": true
-					}
-				},
-				"required": [
-					"id",
-					"name",
-					"avatarUrl",
-					"gender"
 				],
 				"type": "object",
 				"additionalProperties": false
@@ -184,14 +122,16 @@
 						"content": {
 							"application/json": {
 								"schema": {
-									"$ref": "#/components/schemas/JwtUserPayload"
+									"$ref": "#/components/schemas/User"
 								}
 							}
 						}
 					}
 				},
+				"description": "获取当前登录用户信息",
+				"summary": "getMyInfo",
 				"tags": [
-					"Users"
+					"User"
 				],
 				"security": [
 					{
@@ -201,6 +141,112 @@
 					}
 				],
 				"parameters": []
+			}
+		},
+		"/users/getUser": {
+			"post": {
+				"operationId": "getUser",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/User"
+								}
+							}
+						}
+					}
+				},
+				"description": "获取用户信息",
+				"summary": "getUser",
+				"tags": [
+					"User"
+				],
+				"security": [
+					{
+						"bearerAuth": [
+							"user"
+						]
+					}
+				],
+				"parameters": [],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"properties": {
+									"userId": {
+										"type": "number",
+										"format": "double"
+									}
+								},
+								"required": [
+									"userId"
+								],
+								"type": "object"
+							}
+						}
+					}
+				}
+			}
+		},
+		"/users/uploadAvatar": {
+			"post": {
+				"operationId": "uploadAvatar",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"properties": {
+										"avatarUrl": {
+											"type": "string"
+										}
+									},
+									"required": [
+										"avatarUrl"
+									],
+									"type": "object"
+								}
+							}
+						}
+					}
+				},
+				"description": "上传头像",
+				"summary": "uploadAvatar",
+				"tags": [
+					"User"
+				],
+				"security": [
+					{
+						"bearerAuth": [
+							"user"
+						]
+					}
+				],
+				"parameters": [],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"multipart/form-data": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"file": {
+										"type": "string",
+										"format": "binary"
+									}
+								},
+								"required": [
+									"file"
+								]
+							}
+						}
+					}
+				}
 			}
 		},
 		"/health": {

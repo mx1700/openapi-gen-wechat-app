@@ -135,6 +135,14 @@ function generateTypes(operations: { operation: OpenAPIV3.OperationObject; path:
   const types: string[] = [];
 
   for (const { operation } of operations) {
+    // 检查请求内容类型是否为 application/json
+    if (operation.requestBody) {
+      const requestBody = operation.requestBody as OpenAPIV3.RequestBodyObject;
+      if (!requestBody.content?.['application/json']) {
+        continue; // 跳过非 application/json 类型的接口
+      }
+    }
+
     // 请求类型
     if (operation.requestBody) {
       const requestBody = operation.requestBody as OpenAPIV3.RequestBodyObject;
@@ -235,6 +243,15 @@ function toPascalCase(str: string): string {
 
 function generateMethod(item: { operation: OpenAPIV3.OperationObject; path: string; method: string }, api: OpenAPIV3.Document): string {
   const { operation, path: pathName, method: httpMethod } = item;
+
+  // 检查请求内容类型是否为 application/json
+  if (operation.requestBody) {
+    const requestBody = operation.requestBody as OpenAPIV3.RequestBodyObject;
+    if (!requestBody.content?.['application/json']) {
+      return ''; // 跳过非 application/json 类型的接口
+    }
+  }
+
   const operationId = operation.operationId || operation.summary || 'unknown';
   const methodName = toCamelCase(operationId);
 
@@ -313,6 +330,14 @@ function generateInlineTypes(operations: { operation: OpenAPIV3.OperationObject;
   let content = '';
 
   for (const { operation } of operations) {
+    // 检查请求内容类型是否为 application/json
+    if (operation.requestBody) {
+      const requestBody = operation.requestBody as OpenAPIV3.RequestBodyObject;
+      if (!requestBody.content?.['application/json']) {
+        continue; // 跳过非 application/json 类型的接口
+      }
+    }
+
     const operationId = operation.operationId || operation.summary || 'unknown';
 
     // 请求类型
