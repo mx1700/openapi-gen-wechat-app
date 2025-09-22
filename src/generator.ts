@@ -206,7 +206,8 @@ function getTypeFromSchema(schema: OpenAPIV3.SchemaObject | OpenAPIV3.ReferenceO
   if ('$ref' in schema) {
     const ref = schema.$ref;
     const refName = ref.split('/').pop() || 'any';
-    return isGlobalType ? refName : `ApiType.${refName}`;
+    const pascalRefName = toPascalCase(refName);
+    return isGlobalType ? pascalRefName : `ApiType.${pascalRefName}`;
   }
 
   const s = schema as OpenAPIV3.SchemaObject;
@@ -238,7 +239,7 @@ function getTypeFromSchema(schema: OpenAPIV3.SchemaObject | OpenAPIV3.ReferenceO
 }
 
 function toPascalCase(str: string): string {
-  return str.replace(/(^\w|-\w)/g, (match) => match.replace('-', '').toUpperCase());
+  return str.replace(/[-_\s]+(.)?/g, (_, c) => c ? c.toUpperCase() : '').replace(/^./, c => c.toUpperCase());
 }
 
 function generateMethod(item: { operation: OpenAPIV3.OperationObject; path: string; method: string }, api: OpenAPIV3.Document): string {
@@ -267,7 +268,8 @@ function generateMethod(item: { operation: OpenAPIV3.OperationObject; path: stri
     if (jsonContent?.schema) {
       if ('$ref' in jsonContent.schema) {
         const refName = jsonContent.schema.$ref.split('/').pop() || 'any';
-        requestType = `ApiType.${refName}`;
+        const pascalRefName = toPascalCase(refName);
+        requestType = `ApiType.${pascalRefName}`;
         isRefRequestType = true;
       } else {
         requestType = `${toPascalCase(operationId)}Request`;
@@ -284,7 +286,8 @@ function generateMethod(item: { operation: OpenAPIV3.OperationObject; path: stri
       const schema = successResponse.content['application/json'].schema;
       if ('$ref' in schema) {
         const refName = schema.$ref.split('/').pop() || 'any';
-        responseType = `ApiType.${refName}`;
+        const pascalRefName = toPascalCase(refName);
+        responseType = `ApiType.${pascalRefName}`;
         isRefResponseType = true;
       } else {
         responseType = `${toPascalCase(operationId)}Response`;
@@ -318,7 +321,8 @@ function generateGlobalTypes(api: OpenAPIV3.Document): string {
 
   if (api.components?.schemas) {
     for (const [schemaName, schema] of Object.entries(api.components.schemas)) {
-      const typeDef = generateTypeFromSchema(schema, schemaName, api, true);
+      const typeName = toPascalCase(schemaName);
+      const typeDef = generateTypeFromSchema(schema, typeName, api, true);
       content += typeDef + '\n\n';
     }
   }
