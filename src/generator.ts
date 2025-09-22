@@ -92,7 +92,7 @@ async function generateClientCode(api: OpenAPIV3.Document, outputDir: string): P
 }
 
 function generateTagFile(tag: string, operations: { operation: OpenAPIV3.OperationObject; path: string; method: string }[], api: OpenAPIV3.Document): string {
-  let content = `import { RequestInterface, RequestOptions } from './request';\nimport * as ApiType from './types';\n\n`;
+  let content = `import type { RequestInterface, RequestOptions } from './request';\nimport * as ApiType from './types';\n\n`;
 
   // 生成内联类型定义
   const inlineTypes = generateInlineTypes(operations, api);
@@ -114,7 +114,7 @@ function generateTagFile(tag: string, operations: { operation: OpenAPIV3.Operati
 }
 
 function generateIndexFile(tags: string[], outputDir: string): string {
-  let imports = `import { RequestInterface } from "./request";\n`;
+  let imports = `import type { RequestInterface } from "./request";\n`;
   let classProps = '';
   let constructorBody = '';
 
@@ -135,22 +135,18 @@ function generateTypes(operations: { operation: OpenAPIV3.OperationObject; path:
   const types: string[] = [];
 
   for (const { operation } of operations) {
-    // 检查请求内容类型是否为 application/json
-    if (operation.requestBody) {
-      const requestBody = operation.requestBody as OpenAPIV3.RequestBodyObject;
-      if (!requestBody.content?.['application/json']) {
-        continue; // 跳过非 application/json 类型的接口
-      }
-    }
-
     // 请求类型
     if (operation.requestBody) {
       const requestBody = operation.requestBody as OpenAPIV3.RequestBodyObject;
-      const jsonContent = requestBody.content?.['application/json'];
-      if (jsonContent?.schema) {
-        const typeName = `${toPascalCase(operation.operationId || operation.summary || 'Request')}Request`;
-        const typeDef = generateTypeFromSchema(jsonContent.schema, typeName, api);
-        types.push(typeDef);
+      const contentTypes = Object.keys(requestBody.content || {});
+      for (const contentType of contentTypes) {
+        const content = requestBody.content![contentType];
+        if (content?.schema) {
+          const typeName = `${toPascalCase(operation.operationId || operation.summary || 'Request')}Request`;
+          const typeDef = generateTypeFromSchema(content.schema, typeName, api);
+          types.push(typeDef);
+          break; // 只处理第一个 content type
+        }
       }
     }
 
@@ -220,6 +216,9 @@ function getTypeFromSchema(schema: OpenAPIV3.SchemaObject | OpenAPIV3.ReferenceO
 
   switch (s.type) {
     case 'string':
+      if (s.format === 'binary') {
+        return 'Blob';
+      }
       return 'string';
     case 'number':
     case 'integer':
@@ -245,34 +244,37 @@ function toPascalCase(str: string): string {
 function generateMethod(item: { operation: OpenAPIV3.OperationObject; path: string; method: string }, api: OpenAPIV3.Document): string {
   const { operation, path: pathName, method: httpMethod } = item;
 
-  // 检查请求内容类型是否为 application/json
-  if (operation.requestBody) {
-    const requestBody = operation.requestBody as OpenAPIV3.RequestBodyObject;
-    if (!requestBody.content?.['application/json']) {
-      return ''; // 跳过非 application/json 类型的接口
-    }
-  }
-
   const operationId = operation.operationId || operation.summary || 'unknown';
   const methodName = toCamelCase(operationId);
 
   // 生成方法注释
   const methodComment = operation.description || operation.summary ? `  /** ${operation.description || operation.summary} */\n` : '';
 
-  // 请求类型
+  // 请求类型和 headers
   let requestType = 'any';
   let isRefRequestType = false;
+  let headers: string | undefined;
   if (operation.requestBody) {
     const requestBody = operation.requestBody as OpenAPIV3.RequestBodyObject;
-    const jsonContent = requestBody.content?.['application/json'];
-    if (jsonContent?.schema) {
-      if ('$ref' in jsonContent.schema) {
-        const refName = jsonContent.schema.$ref.split('/').pop() || 'any';
-        const pascalRefName = toPascalCase(refName);
-        requestType = `ApiType.${pascalRefName}`;
-        isRefRequestType = true;
-      } else {
-        requestType = `${toPascalCase(operationId)}Request`;
+    const contentTypes = Object.keys(requestBody.content || {});
+    for (const contentType of contentTypes) {
+      const content = requestBody.content![contentType];
+      if (content?.schema) {
+        if ('$ref' in content.schema) {
+          const refName = content.schema.$ref.split('/').pop() || 'any';
+          const pascalRefName = toPascalCase(refName);
+          requestType = `ApiType.${pascalRefName}`;
+          isRefRequestType = true;
+        } else {
+          requestType = `${toPascalCase(operationId)}Request`;
+        }
+        // 设置 headers
+        if (contentType === 'multipart/form-data') {
+          headers = `{ "Content-Type": "multipart/form-data" }`;
+        } else if (contentType === 'application/x-www-form-urlencoded') {
+          headers = `{ "Content-Type": "application/x-www-form-urlencoded" }`;
+        }
+        break; // 只处理第一个 content type
       }
     }
   }
@@ -308,7 +310,7 @@ function generateMethod(item: { operation: OpenAPIV3.OperationObject; path: stri
   params.push('options?: RequestOptions');
 
   return `${methodComment}  async ${methodName}(${params.join(', ')}): Promise<${responseType}> {
-    return this.request.request('${url}', '${httpMethodUpper}', ${dataParam || 'undefined'}, undefined, options);
+    return this.request.request('${url}', '${httpMethodUpper}', ${dataParam || 'undefined'}, ${headers || 'undefined'}, options);
   }`;
 }
 
@@ -334,24 +336,20 @@ function generateInlineTypes(operations: { operation: OpenAPIV3.OperationObject;
   let content = '';
 
   for (const { operation } of operations) {
-    // 检查请求内容类型是否为 application/json
-    if (operation.requestBody) {
-      const requestBody = operation.requestBody as OpenAPIV3.RequestBodyObject;
-      if (!requestBody.content?.['application/json']) {
-        continue; // 跳过非 application/json 类型的接口
-      }
-    }
-
     const operationId = operation.operationId || operation.summary || 'unknown';
 
     // 请求类型
     if (operation.requestBody) {
       const requestBody = operation.requestBody as OpenAPIV3.RequestBodyObject;
-      const jsonContent = requestBody.content?.['application/json'];
-      if (jsonContent?.schema && !('$ref' in jsonContent.schema)) {
-        const typeName = `${toPascalCase(operationId)}Request`;
-        const typeDef = generateTypeFromSchema(jsonContent.schema, typeName, api);
-        content += typeDef + '\n\n';
+      const contentTypes = Object.keys(requestBody.content || {});
+      for (const contentType of contentTypes) {
+        const contentSchema = requestBody.content![contentType];
+        if (contentSchema?.schema && !('$ref' in contentSchema.schema)) {
+          const typeName = `${toPascalCase(operationId)}Request`;
+          const typeDef = generateTypeFromSchema(contentSchema.schema, typeName, api);
+          content += typeDef + '\n\n';
+          break; // 只处理第一个 content type
+        }
       }
     }
 

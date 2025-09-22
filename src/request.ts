@@ -1,4 +1,4 @@
-type RequestMethod = "GET" | "POST" | "PUT" | "DELETE";
+export type RequestMethod = "GET" | "POST" | "PUT" | "DELETE";
 
 // 定义请求选项接口
 export interface RequestOptions {
@@ -20,13 +20,47 @@ export interface RequestInterface {
 // 默认实现（使用 fetch）
 export const FetchRequestImpl: RequestInterface = {
   request: async <T>(url: string, method: RequestMethod, data?: any, headers?: Record<string, string>, options?: RequestOptions): Promise<T> => {
+    let body: string | FormData | URLSearchParams | undefined;
+    const contentType = headers?.['Content-Type'] || headers?.['content-type'] || 'application/json';
+
+    if (data) {
+      if (contentType === 'application/x-www-form-urlencoded') {
+        const params = new URLSearchParams();
+        for (const [key, value] of Object.entries(data)) {
+          params.append(key, String(value));
+        }
+        body = params;
+      } else if (contentType === 'multipart/form-data') {
+        const formData = new FormData();
+        const appendToFormData = (key: string, value: any) => {
+          if (value instanceof Blob || value instanceof File) {
+            formData.append(key, value);
+          } else if (typeof value === 'object' && value !== null) {
+            formData.append(key, JSON.stringify(value));
+          } else {
+            formData.append(key, String(value));
+          }
+        };
+
+        for (const [key, value] of Object.entries(data)) {
+          appendToFormData(key, value);
+        }
+        body = formData;
+        // 移除 Content-Type，让浏览器自动设置
+        delete headers?.['Content-Type'];
+        delete headers?.['content-type'];
+      } else {
+        body = JSON.stringify(data);
+      }
+    }
+
     return fetch(url, {
       method,
       headers: {
-        "Content-Type": "application/json",
+        ...(contentType !== 'multipart/form-data' ? { "Content-Type": contentType } : {}),
         ...headers
       },
-      body: JSON.stringify(data),
+      body,
       signal: options?.signal
     }).then(response => response.json());
   }
